@@ -33,9 +33,10 @@ sequelize
 
 // Middleware para injetar contexto
 app.use(async (req, res, next) => {
+  const user = await models.User.findOne(); // pega o primeiro usuário existente
   req.context = {
     models,
-    me: await models.User.findByPk(1),
+    me: user,
   };
   next();
 });
