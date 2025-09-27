@@ -1,36 +1,67 @@
-import { v4 as uuidv4 } from "uuid";
 import { Router } from "express";
 
 const router = Router();
 
-router.get("/", (req, res) => {
-  return res.send(Object.values(req.context.models.messages));
-});
+export default (models) => {
+  // LISTAR todas as mensagens
+  router.get("/", async (req, res) => {
+    try {
+      const messages = await models.Message.findAll({ include: models.User });
+      res.json(messages);
+    } catch (err) {
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
 
-router.get("/:messageId", (req, res) => {
-  return res.send(req.context.models.messages[req.params.messageId]);
-});
+  // BUSCAR mensagem por ID
+  router.get("/:id", async (req, res) => {
+    try {
+      const message = await models.Message.findByPk(req.params.id, { include: models.User });
+      if (!message) return res.status(404).json({ error: "Mensagem não encontrada" });
+      res.json(message);
+    } catch (err) {
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
 
-router.post("/", (req, res) => {
-  const id = uuidv4();
-  const message = {
-    id,
-    text: req.body.text,
-    userId: req.context.me.id,
-  };
+  // CRIAR nova mensagem
+  router.post("/", async (req, res) => {
+    try {
+      const message = await models.Message.create({
+        text: req.body.text,
+        UserId: req.context.me.id,
+      });
+      res.status(201).json(message);
+    } catch (err) {
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
 
-  req.context.models.messages[id] = message;
+  // ATUALIZAR mensagem
+  router.put("/:id", async (req, res) => {
+    try {
+      const message = await models.Message.findByPk(req.params.id);
+      if (!message) return res.status(404).json({ error: "Mensagem não encontrada" });
 
-  return res.send(message);
-});
+      await message.update({ text: req.body.text });
+      res.json(message);
+    } catch (err) {
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
 
-router.delete("/:messageId", (req, res) => {
-  const { [req.params.messageId]: message, ...otherMessages } =
-    req.context.models.messages;
+  // DELETAR mensagem
+  router.delete("/:id", async (req, res) => {
+    try {
+      const message = await models.Message.findByPk(req.params.id);
+      if (!message) return res.status(404).json({ error: "Mensagem não encontrada" });
 
-  req.context.models.messages = otherMessages;
+      await message.destroy();
+      res.status(204).send(); // sucesso sem conteúdo
+    } catch (err) {
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
 
-  return res.send(message);
-});
-
-export default router;
+  return router;
+};
