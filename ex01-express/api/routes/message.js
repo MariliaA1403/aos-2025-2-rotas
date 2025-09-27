@@ -29,7 +29,7 @@ export default (models) => {
     try {
       const message = await models.Message.create({
         text: req.body.text,
-        UserId: req.context.me.id,
+        userId: req.context.me.id,
       });
       res.status(201).json(message);
     } catch (err) {
