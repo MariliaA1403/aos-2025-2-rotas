@@ -8,32 +8,27 @@ import routes from "./routes";
 const app = express();
 app.set("trust proxy", true);
 
-// Configuração do CORS
 const corsOptions = {
   origin: ["http://example.com", "*"],
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
 
-// Middleware de log
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.path} - ${req.ip}`);
   next();
 });
 
-// Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Teste de conexão com o banco
 sequelize
   .authenticate()
   .then(() => console.log("Conexão com o banco estabelecida com sucesso!"))
   .catch((err) => console.error("Erro ao conectar com o banco:", err));
 
-// Middleware para injetar contexto
 app.use(async (req, res, next) => {
-  const user = await models.User.findOne(); // pega o primeiro usuário existente
+  const user = await models.User.findOne();
   req.context = {
     models,
     me: user,
@@ -41,19 +36,19 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Rotas
 app.use("/", routes.root);
 app.use("/session", routes.session);
 app.use("/users", routes.user(models));
 app.use("/messages", routes.message(models));
+app.use("/tarefas", routes.tarefa(models));
 
 const port = process.env.PORT ?? 3000;
 const eraseDatabaseOnSync = process.env.ERASE_DATABASE === "true";
 
-// Sync com Sequelize e criação de dados iniciais
 sequelize.sync({ force: eraseDatabaseOnSync }).then(async () => {
   if (eraseDatabaseOnSync) {
     await createUsersWithMessages();
+    await createInitialTarefas();
   }
 
   app.listen(port, () => {
@@ -61,7 +56,6 @@ sequelize.sync({ force: eraseDatabaseOnSync }).then(async () => {
   });
 });
 
-// Função para criar usuários e mensagens iniciais
 const createUsersWithMessages = async () => {
   await models.User.create(
     {
@@ -87,5 +81,21 @@ const createUsersWithMessages = async () => {
     { include: [models.Message] }
   );
 
-  console.log("Dados iniciais criados com sucesso!");
+  console.log("Dados iniciais de usuários e mensagens criados com sucesso!");
+};
+
+const createInitialTarefas = async () => {
+  await models.Tarefa.create({
+    descricao: "Finalizar projeto backend",
+    concluida: false,
+    userId: 1,
+  });
+
+  await models.Tarefa.create({
+    descricao: "Estudar Sequelize",
+    concluida: false,
+    userId: 2,
+  });
+
+  console.log("Tarefas iniciais criadas com sucesso!");
 };
